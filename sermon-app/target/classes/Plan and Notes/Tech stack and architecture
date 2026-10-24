@@ -1,0 +1,101 @@
+The "Enterprise-Ready" Tech Stack
+1. The Ingestion API: Spring WebFlux
+
+Why: Traditional Spring Web (Tomcat) uses a thread-per-request model, which collapses under thousands of concurrent metric pushes. WebFlux uses Netty and an event-loop model, allowing a single instance to handle massive concurrent traffic with very little RAM.
+Resume Impact: Shows you understand reactive, non-blocking I/O.
+
+2. The Buffer/Broker: Apache Kafka
+
+Why: It is built exactly for this use case—immutable, high-throughput log aggregation. You will use it to decouple your API from your database.
+
+Resume Impact: Kafka is practically a mandatory keyword for mid-to-senior backend roles. It proves you can design resilient systems that don't drop data when the database slows down.
+
+3. The Processing Engine: Project Reactor (Reactor Kafka)
+
+Why: You need to pull messages from Kafka and group them together before hitting MS SQL. Project Reactor provides the Flux API, which allows you to seamlessly pull streams from Kafka, group them into lists of 5,000, and flush them.
+
+Resume Impact: Demonstrates mastery of reactive streams and micro-batching.
+
+4. The Storage: MS SQL Server (Columnstore)
+
+Why: As discussed, traditional relational tables fail at time-series data.
+
+Resume Impact: Most developers just use Postgres for everything. Showing that you know how to leverage database-specific analytical features (Clustered Columnstore) for OLAP/time-series workloads sets you apart from generic CRUD developers.
+
+5. The Infrastructure/Deployment: Docker Compose
+
+Why: You cannot easily run Spring Boot, Zookeeper, Kafka, and MS SQL Server natively on your machine.
+
+Resume Impact: Proves you can containerize an application and manage multi-container infrastructure. Providing a docker-compose.yml file in your GitHub repo allows the interviewer to spin up your entire architecture with one command.
+
+How to structure this in your code repository
+To show clean separation of concerns, you should structure the project as a multi-module Maven/Gradle project, or as two distinct microservices:
+
+metrics-ingestion-api: A lightweight WebFlux app that does one thing—validates incoming JSON/Protobuf payloads and publishes them to a Kafka topic (server.metrics.raw).
+
+metrics-processor: A background worker app that subscribes to the Kafka topic, buffers the events in memory using a reactive Flux, and executes the bulk inserts into MS SQL Server.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Learning flow
+
+
+Phase 1: Database Mastery ──► Phase 2: Ingestion Buffer ──► Phase 3: The Event Broker ──► Phase 4: Full Reactive ──► Phase 5: The Wow Factor
+(SQL & Schema Setup)         (Batching Engine)              (Apache Kafka Setup)        (Spring WebFlux)          (Grafana Dashboards)
+
+
+Phase 1: Database Mastery & Core Schema (Week 1)
+Don't worry about Kafka or WebFlux yet. Start where the data lives.
+
+What to do: Spin up MS SQL Server locally using Docker. Execute the DDL schema provided earlier. Practice writing queries against it.
+
+What to learn: Understand why a Clustered Columnstore Index behaves differently than a standard B-Tree index. Look up how data is stored in column segments.
+
+Milestone: You can manually run a script to insert 10,000 mock rows into your server_metrics table and query them.
+
+Phase 2: The Ingestion & Batching Engine (Week 1–2)
+Integrate the database with your existing Spring Boot application using a standard REST controller.
+
+What to do: Implement the JdbcTemplate batch insert repository code. Create a standard Spring MVC endpoint (@RestController) that accepts a List<ServerMetricsDto> and sends it straight to the database.
+
+What to learn: Learn how JdbcTemplate.batchUpdate() optimizes network roundtrips by sending a single database command instead of executing row-by-row statements.
+
+Milestone: Use a tool like Postman or Curl to send a JSON array of 1,000 metrics to your endpoint and watch it write to MS SQL instantly.
+
+Phase 3: The Event Broker (Week 2–3)
+Now, decouple your application by introducing a messaging layer.
+
+What to do: Add Apache Kafka to your docker-compose.yml. Update your Spring Boot app to use spring-kafka. Change your endpoint so that it accepts a single metric payload, turns it into a message, and publishes it to a Kafka topic called server-metrics.
+
+What to learn: Learn the fundamentals of Kafka: Topics, Partitions, Producers, Consumers, and Consumer Groups.
+
+Milestone: Sending a metric payload to your endpoint does not touch the database anymore; it successfully lands inside a Kafka topic.
+
+Phase 4: Going Fully Reactive & Micro-Batching (Week 3–4)
+This is where you bridge the gap between Phase 2 and Phase 3 to achieve high throughput.
+
+What to do: This is the time to explore Spring WebFlux and Project Reactor. Create a background worker component in your app that acts as a Kafka consumer. Use Project Reactor's bufferTimeout() to pull individual messages out of Kafka, group them into a list of 2,000 items (or every 500ms), and pass that list to your Phase 2 batch database repository.
+
+What to learn: Reactive Streams concepts (Flux, Mono), non-blocking backpressure, and how to write a reactive Kafka consumer group.
+
+Milestone: You can simulate a storm of 50,000 individual HTTP requests hitting your app; the app absorbs them instantly via Kafka, and you see clean, compressed batches hitting your database logs every half second.
+
+Phase 5: The Wow Factor (Week 4)
+Make your project instantly understandable to a non-technical recruiter or a busy hiring manager.
+
+What to do: Add Grafana to your Docker Compose file. Connect Grafana to your MS SQL database. Write basic time-series SQL queries to build a dashboard showing real-time charts for CPU, RAM, and Network traffic.
+
+What to learn: Basic time-series visualization and how to structure a professional GitHub repository.
+
+Milestone: A complete, working pipeline with a gorgeous dashboard. Take a GIF or screenshot of this dashboard and place it at the very top of your project's GitHub README.md.

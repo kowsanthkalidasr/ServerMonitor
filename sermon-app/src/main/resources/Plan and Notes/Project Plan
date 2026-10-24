@@ -1,0 +1,46 @@
+What This Project Actually Does
+
+
+Basic Use Case :
+Imagine you have 10,000 client servers across the world. Each server runs a tiny agent script. Every 5 seconds, that agent sends a JSON payload containing its current metrics (e.g., {"serverId": "SRV-99", "cpuUsage": 88.5, "memUsage": 91.2}).
+
+Your platform ingests these thousands of concurrent messages without crashing, instantly alerts administrators if a server is overheating (e.g., CPU > 90%), caches the latest states so a web dashboard can fetch them instantly, and saves the historical data for later reporting.
+
+
+
+
+The Microservices & The Logic You Need to Write
+
+
+1. Inventory & Alert Management Service
+    This service handles the structured, relational data. It talks directly to MSSQL using Spring Data JPA.
+
+    Server Registration Logic: * CRUD operations to onboard new servers (ServerID, IPAddress, OS, Status).
+
+    Threshold Config Logic: * Define alert rules for servers (e.g., "If cpuUsage > 85% for more than 3 minutes, trigger a CRITICAL alert").
+
+Concurrency & Lock Logic (Crucial Interview Point):
+
+    What to write: When an alert is triggered, multiple threads or instances might try to update the server's status to CRITICAL at the exact same time.
+
+    Logic: Implement Optimistic Locking (using @Version in JPA) or Pessimistic Locking (@Lock(LockModeType.PESSIMISTIC_WRITE)) on your Server entity to prevent race conditions and demonstrate database isolation level skills.
+
+2. Metrics Ingestion Service (High-Throughput)
+    This service does not talk to the database. Its only job is to be ultra-fast and receive telemetry data.
+
+    REST Endpoint: * Expose a POST API /api/v1/telemetry that client agents call.
+
+    Kafka Producer Logic: * Inside the controller, take the incoming JSON payload and immediately push it to a Kafka topic named server-telemetry.
+
+    Logic optimization: Ensure you configure the Kafka Template to use asynchronous sending so you don't block the HTTP thread.
+
+3. Processing & Analytics Service
+    This service is the workhorse. It listens to Kafka, processes the data, caches it, and checks for breaches.
+
+    Kafka Consumer Logic: * Write a @KafkaListener that continuously pulls batches of metrics from the server-telemetry topic.
+
+    Redis Caching Logic (Write-Through/Cache-Aside): * As soon as a metric comes in, update Redis with the key server:latest:{serverId}. This ensures your dashboard can fetch the "current" status of any server in under 2 milliseconds without hitting MSSQL.
+
+Alert Rules Engine Logic: * Compare the incoming metric against the thresholds defined in Service 1 (use OpenFeign to fetch thresholds, or cache them).
+
+    If a threshold is breached, write logic to generate an alert event and save it to an alerts table in MSSQL.

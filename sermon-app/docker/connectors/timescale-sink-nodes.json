@@ -1,0 +1,26 @@
+{
+  "name": "timescale-sink-nodes",
+  "config": {
+    "connector.class": "io.debezium.connector.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "sermon-cdc.serMonDB.dbo.nodes",
+
+    "connection.url": "jdbc:postgresql://timescaledb:5432/serMonTimescaleDB",
+    "connection.username": "postgres",
+    "connection.password": "Admin@123",
+
+    "table.name.format": "nodes",
+    "insert.mode": "upsert",
+    "primary.key.mode": "record_key",
+    "primary.key.fields": "id",
+    
+    "schema.evolution": "none",
+    "auto.create": "false",
+    "auto.evolve": "false",
+
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "true",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true"
+  }
+}

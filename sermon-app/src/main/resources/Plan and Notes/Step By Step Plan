@@ -1,0 +1,6 @@
+Step,Focus Area,What You Learn
+Step 1,Pure Java/Spring,Calculating CPU deltas in memory.
+Step 2,Docker Basics,Packaging your JAR into a container.
+Step 3,Docker Compose + DB,Running Postgres & saving data via Spring Data JPA.
+Step 4,Redis Integration,Moving state out of Spring Boot memory into Redis.
+Step 5,Nginx Load Balancing,Scaling your app to multiple containers.

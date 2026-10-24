@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %class{0}.%method - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="NODE_CDC_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/CDC/cdc-node.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/CDC/cdc-node-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder><pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} – %msg%n</pattern></encoder>
+    </appender>
+
+    <appender name="USER_CRUD_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/user/user-crud.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/user/user-crud-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder><pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} – %msg%n</pattern></encoder>
+    </appender>
+
+    <appender name="AUDIT_USER_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/audit/audit-user.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/audit/audit-user-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>180</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} – %msg%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <appender name="SYSTEM_ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/system-error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/system-error-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>180</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} – %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.course.crudapp.user.controller" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="USER_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+
+    <logger name="AUDIT_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <logger name="NODE_CDC_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="NODE_CDC_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="USER_CRUD_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="USER_CRUD_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="AUDIT_USER_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="AUDIT_USER_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="AUDIT_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="SYSTEM_ERROR_LOG" level="DEBUG" additivity="false">
+        <appender-ref ref="SYSTEM_ERROR_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+</configuration>

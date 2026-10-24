@@ -1,0 +1,106 @@
+We have 3 user roles
+
+    1. Super Admin (ROLE_ADMIN) ->
+        i) add, delete users
+        ii) modify user scope
+        iii) complete crud access
+        iv) view logs
+        v) All access of SRE
+
+    2. Operator / SRE (ROLE_SRE)
+        i) add, delete servers to monitor
+        ii) configure collection interval
+        iii) changing alert threshold
+        iv) delete alerts
+
+    3. Viewer (ROLE_VIEWER)
+        i) view servers
+        ii) view alerts
+        iii) view thresholds
+
+    4. Auditor (ROLE_AUDITOR) -> Optional
+        i) view audit logs
+
+
+
+
+Permissions :
+
+Permission Name,Description
+user:create,    Add new users to the system
+user:delete,    Remove users from the system
+user:modify,   Modify a user's roles/permissions
+server:create,  Add new servers to monitor
+server:read,    View monitored servers
+server:delete,  Delete servers from monitoring
+config:write,   Configure collection intervals and alert thresholds
+config:read,    View configured alert thresholds
+alert:read,     View triggered alerts
+alert:delete,   Dismiss or delete alerts
+
+
+
+DB Schema :
+Users -> users have role(s) -> roles have permissions
+
+users - [many to many] - roles -[many to many] - permissions.
+
+
+
+Users -> users have role(s) -> roles have permissions
+join tables : users_roles, roles_permissions
+separate user details table for user meta data.
+
+However, we might need to temporarily provide permissions to users which exceed their roles. so, we can create a new user_permissions table. This can map exceptional permissions to the user
+
+So, users_permissions table for exceptional permissions.
+
+
+users :
+    user_id -> UUID
+    username -> String
+    password -> String -> hash
+    email -> String -> Unique
+    Status -> String Enum(ACTIVE/SUSPENDED)
+
+
+user_details :
+    user_id -> UUID -> from user table
+    first_name -> String
+    last_name -> String
+    user_desc -> String
+    created by -> UUID -> Creator user id
+    created time -> datetime timestamp
+
+Roles :
+    role_id : int
+    role_name : String
+    description : String
+
+Permissions :
+    permission_id : int
+    permission_name : String
+    description : String
+
+users_roles :
+    user_id : UUID
+    role_id :  Long
+    assignment time : DATETIMEOFFSET
+
+    -- Non-Clustered Index on role_id to optimize reverse lookups (e.g., "Find all users with Role X")
+    CREATE NONCLUSTERED INDEX IX_USER_ROLES_MAPPING_RoleId
+    ON USER_ROLES_MAPPING (role_id);
+
+    Composite primary key with both ids
+
+roles_permissions :
+    role_id :  Long
+    permission_id : Long
+    Composite primary key with both ids
+
+users_permissions :
+    user_id : UUID
+    permission_id : Long
+
+    Composite primary key with both ids
+

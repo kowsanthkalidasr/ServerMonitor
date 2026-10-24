@@ -1,0 +1,92 @@
+I am about to open and review the README file for the project.
+Found "src/main/java/com/sermon/**/*.java"
+I'm going through the main source code and configuration to assess quality before grading.
+Found "src/main/java/com/sermon/**/*.java"
+Found "src/test/**/."
+Now I'm reviewing the node/user business logic, error handling, and build configuration.
+Now I'm reviewing user management, security setup, and the build/infrastructure configuration.
+I'm doing a final pass over the database migrations and container setup, then I'll give you the graded review with suggestions.
+Found "src/main/resources/db/migration/**/*.sql"
+SerMon — Project Review & Grade
+Overall this is a strong, well-above-average portfolio project that clearly demonstrates senior-leaning backend and DevOps skills (event-driven CDC architecture, multi-datasource persistence, time-series modeling, JWT/RBAC security, full containerization). The main gap is that the headline feature — the metrics monitoring pipeline — is designed at the infrastructure/DB layer but not yet wired end-to-end in application code, and test coverage is minimal. There are also a couple of real correctness/security issues worth fixing before you show this to interviewers.
+Overall Grade: B+ (≈ 8/10)
+Category
+Grade
+Notes
+Architecture & design
+A
+CDC (Debezium → 3-node Kafka KRaft → TimescaleDB), clean write/read separation
+Database & data modeling
+A
+Excellent TimescaleDB use: hypertables, continuous aggregates, retention, CHECK constraints
+Security
+B
+Solid JWT/BCrypt/RBAC foundation, but role enforcement and an entity-leak issue need work
+Code quality & structure
+B+
+Clean package-by-feature layout, MapStruct, Lombok, centralized error handling
+API design
+B-
+Inconsistent versioning/response types; entity leakage
+Testing
+D
+Only 2 tests; no integration/Testcontainers coverage
+Feature completeness
+C+
+Metrics ingestion/read (the core value) not implemented in app code yet
+Documentation
+A
+Exceptionally thorough, professional README.md
+What's genuinely impressive
+•
+The CDC/event-streaming design. MSSQL (system of record) → Debezium → 3-broker Kafka KRaft cluster (RF=3, min.insync.replicas=2) → TimescaleDB is a sophisticated, production-style pattern that most portfolio projects never attempt.
+•
+TimescaleDB modeling (V2__create_metrics_tables.sql): hypertables with 1-day chunks, hourly/daily continuous aggregates with refresh policies, tiered retention (7d/90d/365d), and domain CHECK constraints (utilization 0.0–1.0). This is professional-grade.
+•
+Security fundamentals: stateless JWT with HMAC signing, a clean OncePerRequestFilter, BCrypt, a normalized users/roles/permissions RBAC schema, JPA auditing, and Hibernate soft-delete (@SQLDelete + @SQLRestriction) done correctly.
+•
+Engineering hygiene: centralized @RestControllerAdvice, Bean Validation on DTOs, MapStruct mappers, per-engine Flyway migrations, structured security logging, and a one-command Docker Compose stack.
+Issues to fix (highest impact first)
+1.
+UserController leaks the JPA entity (security + coupling). Both getAllUsers() and createUser() return the User entity directly, which serializes the BCrypt password hash and all internal fields into the JSON response. Introduce response DTOs (e.g. UserResponse) and never return entities from controllers. This is the single most important fix.
+2.
+RBAC is defined but not enforced. You have a full roles/permissions model and put roles into the JWT, yet SecurityConfiguration only requires authenticated(). Add @EnableMethodSecurity and @PreAuthorize("hasRole('ADMIN')") (or hasAuthority(...)) on sensitive endpoints (user creation, node deletion) so the RBAC data actually gates access.
+3.
+Actuator exposure. "/actuator/*" is permitAll() with a single-level wildcard — this can expose more than intended. Restrict public access to /actuator/health and /actuator/info and secure the rest.
+4.
+Inconsistent API contract.
+◦
+UserController uses /api/users while everything else is /api/v1/....
+◦
+NodeController.createNode returns a raw String with 200 OK; it should return 201 Created with a Location header (mirror the ResponseEntity style used by deleteNode).
+◦
+In GlobalExceptionHandler, handleResourceAlreadyExistsException returns a raw Map<String,Object> instead of your uniform ApiErrorResponse — breaks the "consistent JSON error" promise.
+5.
+Hard-coded secrets. DB passwords (Admin@123) are hard-coded in the Flyway plugin config in pom.xml, and default JWT/DB creds live in compose. Fine for a demo, but move them to environment variables / Maven properties and mention this explicitly (your README already has a good security note — extend it to the pom.xml).
+6.
+Minimal tests. Only SerMonApplicationTests and one auth controller test exist. For a resume project, add: unit tests for JwtService/NodeService/UserService, @WebMvcTest slices for controllers, and — given the whole point is infrastructure — at least one Testcontainers integration test (SQL Server/Postgres, ideally the Kafka/Debezium path). This will differentiate you strongly.
+Smaller polish items
+•
+JwtService.isTokenExpired(...) is dead code (unused private method) — remove it.
+•
+validateAndGetClaims swallows exceptions and returns null; that works with the filter, but consider whether you want to distinguish "expired" vs "malformed" upstream for clearer 401 messaging.
+•
+UserService.getAllUsers() calls findAll() with no pagination — add Pageable before this hits a real fleet-sized dataset.
+•
+pom.xml metadata is empty (<url/>, empty <license/>, <developer/>) and groupId is just com — set com.sermon and fill in basic metadata for professionalism.
+•
+Spring Boot 4.1.0 is bleeding-edge/pre-GA; double-check it resolves reproducibly on a clean machine, or pin to a stable 3.x if reviewers will try to build it.
+Suggestions to maximize resume impact
+•
+Finish the core loop. Implement the metrics ingestion path (a @KafkaListener consumer writing to the TimescaleDB hypertables via JdbcTemplate) and read endpoints backed by the continuous aggregates. Right now the "monitoring" story stops at the DB schema — closing this loop turns a great architecture demo into a working product and is your biggest ROI.
+•
+Add OpenAPI/Swagger (springdoc) — your security config already whitelists the swagger URLs, so it's low effort and makes the API self-documenting for reviewers.
+•
+Add a refresh-token flow with a short-lived access token; you already list this in the roadmap and it's a common interview talking point.
+•
+Add a lightweight CI (GitHub Actions: mvn verify) and a status badge — signals engineering maturity.
+•
+Include an architecture/sequence diagram image (even the ASCII one is good; a rendered diagram in the README elevates perceived polish).
+•
+A short Grafana dashboard over TimescaleDB would make the monitoring value visually obvious to non-technical reviewers.
+Bottom line The ambition and infrastructure design here are well beyond a typical CRUD portfolio app and will stand out. Prioritize (1) not leaking the User entity, (2) enforcing RBAC on endpoints, (3) completing the Kafka→TimescaleDB ingestion loop, and (4) adding a Testcontainers integration test. Those four changes would push this solidly into A territory.

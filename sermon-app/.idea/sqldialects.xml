@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/docker/docker-init/01-init-mssql.sql" dialect="TSQL" />
+    <file url="file://$PROJECT_DIR$/docker/docker-init/02-init-timescale.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/src/main/java/com/sermon/monitoring/node_mgmt/model/entity/Node.java" dialect="TSQL" />
+    <file url="file://$PROJECT_DIR$/src/main/resources/db/migration/mssql/V3__create_nodes_table.sql" dialect="TSQL" />
+    <file url="file://$PROJECT_DIR$/src/main/resources/db/migration/timescale/V2__create_metrics_tables.sql" dialect="PostgreSQL" />
+  </component>
+</project>

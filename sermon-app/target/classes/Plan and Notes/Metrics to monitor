@@ -1,0 +1,65 @@
+We are handling
+    Linux Server
+    Windows Server
+    Docker Hosts
+    Database Server
+
+
+METRICS TO MONITOR
+
+inital monitored node count : 1000
+monitoring interval : 5 sec
+inserts per min : 12,000
+
+CPU Metrics
+    1. CPU Utilization (%) -> This is the value of total utilization.
+    2. User cpu util time (%) -> The user is actually the applications and this is actually the time ticks in which cpu resources used by the actual application
+    3. System cpu util Time (%) -> The cpu resource spent on facilitating the User applications. This is taken by the kernel inorder to read write to disk, handling n/w packets, managing memory, managing threads and processes etc.
+    4. I/O wait (%) -> The percentage of time the CPU sits idle waiting for disk or network operations to complete
+
+
+    Note : The values returned by the system are in jitters( same as counters, ever rising). we are supposed to take delta of them in the before and now to find the current value.
+
+    user + sys + idle = total ticks. so total cpu util ticks = ((user + sys) / (user + sys + idle)) * 100. Similarly, we can calculate percent for everything.
+
+Memory Metrics :
+    1. Used Memory
+    2. Available Memory
+    3. Swap Rate Memory (kbps)
+
+
+Disk I/O Metrics :
+    1. Disk Utilization (%)
+    2. IOPS (Input Output Operations per Second)
+    3. Queue Depth (no of ops)
+
+Network Metrics :
+    1. Rx Traffic (in bps)
+    2. Tx Traffic (in bps)
+    3. Packet drop rate (%)
+
+
+
+Note : For simplicity sake, we are gonna get the percentage values itself from the request as input.
+
+
+
+
+Servers :
+
+We store below data of servers
+    1. Server id : UUID -> Time based
+    2. host name : NVARCHAR 100
+    3. OS name : NVARCHAR 100
+    4. host ip : varchar 45
+    5. machine type (Category) : varchar 50
+
+    6. status : varchar (1)
+    7. created at : datetimeoffset(2)
+    8. created by : UUID
+    9. updated at : datetimeoffset(2)
+    10. updated by : UUID
+
+
+
+

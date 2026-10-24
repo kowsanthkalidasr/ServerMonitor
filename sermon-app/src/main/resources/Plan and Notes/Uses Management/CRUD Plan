@@ -1,0 +1,53 @@
+To handle User CRUD
+
+Create :
+    One single endpoint for all data
+
+Update :
+
+4 different endpoints :
+    i)  UserProfileUpdateDto -> user details data & email
+    ii) UserAccessUpdateDto -> roleId, permissionId
+    iii) PasswordChangeRequest -> password
+    iv) UsernameChangeRequest -> newUserName
+
+
+Delete :
+    Implementing soft delete
+
+    API mentions delete, but the flag is set to false.
+    The User Entity itself must return users only status = A users. there should not be checks each time
+    intercept the remove method to set flag to false
+
+
+        @Entity
+        @Table(name = "users")
+        @Getter
+        @Setter
+        // Intercepts the standard EntityManager.remove() or repository.delete()
+        @SQLDelete(sql = "UPDATE users SET deleted = true, deleted_at = NOW() WHERE id = ?")
+        // Automatically appends "AND deleted = false" to all SELECT queries
+        @SQLRestriction("deleted = false")
+        public class User {
+
+
+Read :
+
+    1. General call : /api/admin/users -> Page<UserSummaryDto>
+        Just the summary of user calls
+        userId,username , email , roles, permissions
+
+Must implement Pagination
+
+    2. Id specific call : /api/admin/users/{id} -> UserResponseDto
+        userId
+        username
+        email
+
+        firstName
+        lastName
+        description
+        createdBy
+        createdTime
+        updatedBy
+        updatedTime

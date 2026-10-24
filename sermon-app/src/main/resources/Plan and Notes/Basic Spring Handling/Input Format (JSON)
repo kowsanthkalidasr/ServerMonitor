@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-06-23T16:04:00Z",
+  "serverId": "SRV-UBNT-9041",
+  "metrics": {
+    "cpu": {
+      "utilization": 82.4,
+      "system": 12.1,
+      "user": 70.3,
+      "ioWait": 0.0
+    },
+    "memory": {
+      "usedBytes": 13743895347,
+      "availableBytes": 3435973836,
+      "swapRateKbps": 0.0
+    },
+    "disk": {
+      "spaceUtilization": 64.2,
+      "iopsRead": 450,
+      "iopsWrite": 120,
+      "queueDepth": 1
+    },
+    "network": {
+      "txBytesPerSec": 452109,
+      "rxBytesPerSec": 8912044,
+      "dropRate": 0.0
+    }
+  }
+}

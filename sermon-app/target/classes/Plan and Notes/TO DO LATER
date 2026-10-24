@@ -1,0 +1,4 @@
+Implement soft delete
+    1. delete should set the user status to D
+    2. all queries to user table should have status = A unless explicitly asked otherwise
+    3. Each JWT token authentication should also check if userId is valid.

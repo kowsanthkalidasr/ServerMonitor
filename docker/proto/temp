@@ -1,0 +1,14 @@
+Metric,Metric Type,Note
+totalCpuUtil,Counter,Cumulative CPU time units since boot
+userCpuUtil,Counter,Cumulative CPU user-space time units
+systemCpuUtil,Counter,Cumulative CPU kernel-space time units
+rxTraffic,Counter,Cumulative bytes/packets received
+txTraffic,Counter,Cumulative bytes/packets transmitted
+usedMem(kb),Gauge,Instantaneous memory usage
+availableMem(kb),Gauge,Instantaneous available memory
+queueDepth,Gauge,Instantaneous depth of I/O queue
+ioWait(percentage),Percentage / Rate,Calculated ratio over time
+swapRate (kbps),Rate,Derived throughput per second
+Disk Util(%),Percentage / Rate,Calculated busy percentage
+iops,Rate,Derived operations count per second
+packetDropRate(%),Percentage / Rate,Calculated ratio over time

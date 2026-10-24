@@ -1,0 +1,21 @@
+{
+  "groups": [
+    {
+      "name": "spring.mssql.datasource",
+      "type": "javax.sql.DataSource",
+      "sourceType": "com.sermon.config.db.DataSourceRoutingConfig",
+      "sourceMethod": "public javax.sql.DataSource mssqlDataSource() "
+    },
+    {
+      "name": "spring.timescaledb.datasource",
+      "type": "javax.sql.DataSource",
+      "sourceType": "com.sermon.config.db.DataSourceRoutingConfig",
+      "sourceMethod": "public javax.sql.DataSource timescaleDataSource() "
+    }
+  ],
+  "properties": [],
+  "hints": [],
+  "ignored": {
+    "properties": []
+  }
+}
