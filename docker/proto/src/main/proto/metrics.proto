@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package com.sermon.node.grpc;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package="com.sermon.node_metrics.grpc";
+option java_outer_classname = "NodeMetricsProto";
+option java_multiple_files = true;
+
+
+service NodeRegistryService {
+  rpc FetchRegisteredNodes (FetchNodesRequest) returns (stream NodeIdBatch);
+}
+
+service NodeTelemetryService {
+  rpc StreamNodeMetrics (NodeStatusRequest) returns (stream NodeStatusMetrics);
+}
+
+
+
+message FetchNodesRequest {
+  uint32 batchSize = 1;
+}
+
+message NodeIdBatch {
+  repeated int32 nodeIds = 1;
+}
+
+
+message NodeStatusRequest {
+
+}
+
+
+// Need to pass UUID as metadata from header
+
+message NodeStatusMetrics {
+  google.protobuf.Timestamp timestamp = 1;
+
+  uint64 total_cpu_util = 2;
+  uint64 user_cpu_util = 3;
+  uint64 system_cpu_util = 4;
+
+  // --- CPU Rates & Percentages ---
+  double io_wait_percent = 5;
+
+  // --- Memory Metrics ---
+  double used_mem_kb = 6;
+  double available_mem_kb = 7;
+  double swap_rate_kbps = 8;
+
+  // --- Disk Metrics ---
+  double disk_util_percent = 9;
+  double iops = 10;
+  uint64 queue_depth = 11;
+
+  // --- Network Metrics ---
+  uint64 rx_traffic_bytes = 12;
+  uint64 tx_traffic_bytes = 13;
+  double packet_drop_rate_percent = 14;
+}

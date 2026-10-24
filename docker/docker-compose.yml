@@ -1,0 +1,366 @@
+
+networks:
+  sermon-network:
+    driver: bridge
+
+volumes:
+  mssqlserver_data:
+  timescale_data:
+  kafka1_data:
+  kafka2_data:
+  kafka3_data:
+
+services:
+
+  # SPRING BOOT APPLICATION
+  sermon-app:
+    build:
+      context: ..
+      dockerfile: ./sermon-app/docker/Dockerfile
+    container_name: sermon-app
+    restart: "no"
+    networks:
+      - sermon-network
+    ports:
+      - "9000:9000"
+      - "9010:9010"
+      - "9011:9011"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - JAVA_OPTS=-Xms512m -Xmx1200m -XX:+UseG1GC
+
+    deploy:
+      # resources:
+      #   limits:
+      #     cpus: '2.0'
+      #     memory: 2000M
+      #   reservations:
+      #     cpus: '1.0'
+      #     memory: 1000M
+    depends_on:
+      mssqlserver:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://sermon-app:9000/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+
+  simulator:
+    build:
+      context: ..
+      dockerfile: ./simulator/docker/Dockerfile
+    container_name: simulator
+    restart: "no"
+    networks:
+      - sermon-network
+    ports:
+      - "9080:9080"
+      - "9090:9090"
+      - "9091:9091"
+
+
+    depends_on:
+      sermon-app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://simulator:9080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+
+  # PRIMARY SOURCE DB: MSSQL SERVER WITH CDC ENABLED
+
+  mssqlserver:
+    # 2022-CU26-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server@sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89
+    container_name: mssql-server
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "1435:1435"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Admin@123
+      - MSSQL_AGENT_ENABLED=true
+      - MSSQL_TCP_PORT=1435
+    volumes:
+      - mssqlserver_data:/var/opt/mssql
+      - ./docker-init/01-init-mssql.sql:/docker-init/01-init-mssql.sql
+      - ./docker-start/01-start-mssql.sh:/docker-start/01-start-mssql.sh:ro
+    entrypoint: ["/bin/bash", "./docker-start/01-start-mssql.sh"]
+
+    healthcheck:
+      test: ["CMD-SHELL","test -f /tmp/mssql-initialized && /opt/mssql-tools18/bin/sqlcmd -S localhost,1435 -U sa -P 'Admin@123' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+
+  # SECONDARY TARGET DB: TimescaleDB (Time-Series & Analytics Sink)
+
+  timescaledb:
+    image: timescale/timescaledb@sha256:61f891691050da6032023c01ea885730eeeba06b7c17b403e7d0b9c49c37dfe9
+    container_name: timescaledb
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=serMonTimescaleDB
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Admin@123
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./docker-init/02-init-timescale.sql:/docker-entrypoint-initdb.d/02-init-timescale.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d serMonTimescaleDB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # KAFKA BROKER 1
+  kafka-1:
+    image: apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    container_name: kafka-1
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # KRAFT confi
+      - KAFKA_NODE_ID=1
+      - KAFKA_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+
+      # Listeners & Networking
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,EXTERNAL://:29092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-1:9092,EXTERNAL://localhost:29092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+      # Cluster Replication Policies
+      - KAFKA_DEFAULT_REPLICATION_FACTOR=3
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - KAFKA_MIN_INSYNC_REPLICAS=2
+
+    volumes:
+      - kafka1_data:/var/lib/kafka/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+
+
+  kafka-2:
+    image: apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    container_name: kafka-2
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "9094:9094"
+      - "29094:29094"
+    environment:
+      - KAFKA_NODE_ID=2
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      - KAFKA_LISTENERS=PLAINTEXT://:9094,EXTERNAL://:29094,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9094,EXTERNAL://localhost:29094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+
+      # Ensures default topics are replicated across all 3 nodes
+      - KAFKA_DEFAULT_REPLICATION_FACTOR=3
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+
+      # Requires at least 2 in-sync replicas before acknowledging a write (Data Safety)
+      - KAFKA_MIN_INSYNC_REPLICAS=2
+    volumes:
+      - kafka2_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9094 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # -----------------------------------------------------------------
+  # 5. Kafka Broker 3 (KRaft Mode)
+  # -----------------------------------------------------------------
+  kafka-3:
+    image: apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    container_name: kafka-3
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "9096:9096"
+      - "29096:29096"
+    environment:
+      - KAFKA_NODE_ID=3
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      - KAFKA_LISTENERS=PLAINTEXT://:9096,EXTERNAL://:29096,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-3:9096,EXTERNAL://localhost:29096
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      # Ensures default topics are replicated across all 3 nodes
+      - KAFKA_DEFAULT_REPLICATION_FACTOR=3
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+
+      # Requires at least 2 in-sync replicas before acknowledging a write (Data Safety)
+      - KAFKA_MIN_INSYNC_REPLICAS=2
+    volumes:
+      - kafka3_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9096 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# Debezium Kafaka Connect
+
+  debezium:
+    image: debezium/connect:2.6
+    container_name: debezium-connect
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "8083:8083"
+    environment:
+      - BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9094,kafka-3:9096
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=debezium_configs
+      - OFFSET_STORAGE_TOPIC=debezium_offsets
+      - STATUS_STORAGE_TOPIC=debezium_statuses
+      - CONFIG_STORAGE_REPLICATION_FACTOR=3
+      - OFFSET_STORAGE_REPLICATION_FACTOR=3
+      - STATUS_STORAGE_REPLICATION_FACTOR=3
+      - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      mssqlserver:
+        condition: service_healthy
+
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+
+  # debezium init
+  debezium-init:
+    image: curlimages/curl
+    container_name: debezium-init
+    volumes:
+      - ./connectors:/connectors
+      - ./scripts/register-debezium-connector.sh:/register-debezium-connector.sh:ro
+
+    entrypoint: ["/bin/sh","/register-debezium-connector.sh"]
+
+    depends_on:
+      debezium:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+
+
+    networks:
+      - sermon-network
+
+
+
+
+    # Kafka UI
+
+      # -----------------------------------------------------------------
+      # 7. Kafka UI (Cluster Management)
+      # -----------------------------------------------------------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui@sha256:8f2ff02d64b0a7a2b71b6b3b3148b85f66d00ec20ad40c30bdcd415d46d31818
+    container_name: kafka-ui
+    restart: unless-stopped
+    networks:
+      - sermon-network
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=sermon-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-1:9092,kafka-2:9094,kafka-3:9096
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z localhost 8080 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  grafana-k6:
+    image: grafana/k6:master-with-browser@sha256:ecbb6fa0b40a92c24d50e6bc317d15faf44abca8d632df28de4c299fed9a6804
+    container_name: grafana-k6
+    profiles: ["tools"]
+    networks:
+      - sermon-network
+    volumes:
+      - ./testing:/testing
+    environment:
+      # Point k6 at the containerised app instead of host.docker.internal
+      - REGISTER_NODES_URL=http://sermon-app:9000/api/v1/nodes
+      - JWT_TOKEN=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBhZG1pbi5jb20iLCJyb2xlcyI6WyJST0xFX0FETUlOIl0sImlhdCI6MTc4NTAxMjcwOSwiZXhwIjoxNzg1MzcyNzA5fQ.mfV05anOJnLqmQRtCdLbTWEUJqyYHTowUoJ5s7EDKUQ
+
+
+
+
+
+
