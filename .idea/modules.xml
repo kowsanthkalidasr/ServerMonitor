@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/sermon-app/SerMon.iml" filepath="$PROJECT_DIR$/sermon-app/SerMon.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ServerMonitor.iml" filepath="$PROJECT_DIR$/.idea/ServerMonitor.iml" />
+      <module fileurl="file://$PROJECT_DIR$/docker/proto/grpc-proto.iml" filepath="$PROJECT_DIR$/docker/proto/grpc-proto.iml" />
+    </modules>
+  </component>
+</project>

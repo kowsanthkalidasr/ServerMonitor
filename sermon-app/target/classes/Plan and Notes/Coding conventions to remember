@@ -1,5 +1,0 @@
-Logging :
-    1. Must use SizeAndTimeBasedRollingPolicy
-    2. Use named loggers and default Slf4j for a file
-
-
